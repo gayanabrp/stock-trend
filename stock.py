@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# Function to read uploaded CSV file
+# Function to fetch stock data from CSV
 @st.cache_data
-def load_stock_data(uploaded_file):
-    return pd.read_csv(uploaded_file)
+def fetch_stock_data(file_path):
+    return pd.read_csv(file_path)
 
-# Function to calculate moving average
+# Function to calculate a moving average
 def calculate_moving_average(data, window):
     return data.rolling(window=window).mean()
 
@@ -29,32 +29,41 @@ def plot_stock_data(df):
 st.set_page_config(page_title="Stock Trend Analyzer", layout="wide")
 st.title("📈 Stock Trend Analyzer")
 
-# File uploader instead of manual file path
-uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
+# Input fields
+symbol = st.text_input("Enter stock symbol (e.g., AAPL):", "AAPL")
+file_path = st.text_input("Enter path to your CSV file:", "D:\new_project\data\sample_stock_data.csv")
 
-if uploaded_file is not None:
+if st.button("Fetch Data"):
     try:
         # Load stock data
-        stock_data = load_stock_data(uploaded_file)
+        stock_data = fetch_stock_data(file_path)
+        
+        # Ensure 'Close' column exists
+        if 'Close' not in stock_data.columns:
+            raise KeyError("CSV file must contain a 'Close' column.")
 
-        # Ensure required columns exist
-        if 'Date' not in stock_data.columns or 'Close' not in stock_data.columns:
-            st.error("CSV file must contain 'Date' and 'Close' columns.")
-        else:
-            # Convert Date column to datetime
+        # Convert Date column to datetime
+        if 'Date' in stock_data.columns:
             stock_data['Date'] = pd.to_datetime(stock_data['Date'])
+        else:
+            raise KeyError("CSV file must contain a 'Date' column.")
 
-            # Calculate moving averages
-            stock_data['SMA_20'] = calculate_moving_average(stock_data['Close'], window=20)
-            stock_data['SMA_50'] = calculate_moving_average(stock_data['Close'], window=50)
+        # Calculate moving averages
+        stock_data['SMA_20'] = calculate_moving_average(stock_data['Close'], window=20)
+        stock_data['SMA_50'] = calculate_moving_average(stock_data['Close'], window=50)
 
-            # Display stock data
-            st.subheader("Stock Data")
-            st.dataframe(stock_data)
+        # Display stock data
+        st.subheader(f"{symbol} Stock Data")
+        st.dataframe(stock_data)
 
-            # Plot stock data
-            st.subheader("Stock Price and Moving Averages")
-            plot_stock_data(stock_data)
+        # Plot stock data and moving averages
+        st.subheader(f"{symbol} Stock Price and Moving Averages")
+        plot_stock_data(stock_data)
 
+    except FileNotFoundError:
+        st.error("File not found. Please check the file path.")
+    except KeyError as e:
+        st.error(f"Error: {e}")
     except Exception as e:
-        st.error(f"An error occurred: {e}")
+        st.error(f"An unexpected error occurred: {e}")
+
